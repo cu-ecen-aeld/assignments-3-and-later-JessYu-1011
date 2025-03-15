@@ -11,10 +11,8 @@ int main(int argc, char * argv[]) {
 	      	syslog(LOG_ERR, "No enough variables.\n");	
 		return 1; 
 	}
-	char * writefile = (char*)malloc(sizeof(char)*MAX_SIZE);
-	char * writestr = (char*)malloc(sizeof(char)*MAX_SIZE);
-	writefile = argv[1];
-	writestr = argv[2];
+	char *writefile = argv[1];
+	char *writestr = argv[2];
 	FILE * fp = fopen(writefile, "w+");
 	if(fp == NULL) {
 	       	syslog(LOG_ERR, "Unable to write the file.\n");	
