@@ -1,5 +1,5 @@
 CPL := gcc
-
+.PHONY: all clean
 ifeq ($(CROSS_COMPILE), aarch64-none-linux-gnu-)
 	CPL := aarch64-none-linux-gnu-gcc
 else 
