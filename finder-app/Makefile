@@ -1,13 +1,19 @@
-CPL := gcc
+CC := $(CC)
+CXX := $(CXX)
+AR := $(AR)
+LD := $(LD)
+CPPFLAGS := $(CPPFLAGS)
+CFLAGS := $(CFLAGS)
+CXXFLAGS := $(CXXFLAGS)
+LDFLAGS := $(LDFLAGS)
 
-ifeq ($(CROSS_COMPILE), aarch64-none-linux-gnu-)
-	CPL := aarch64-none-linux-gnu-gcc
-else 
-	CPL := gcc
-endif
+.PHONY: all clean
 
-build: writer.c
-	$(CPL) -o writer writer.c
+all: writer
+
+writer: writer.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $^
+
 clean:
 	rm -rf writer *.o
 
