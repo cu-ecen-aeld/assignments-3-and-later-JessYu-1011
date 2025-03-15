@@ -6,7 +6,7 @@ else
 	CPL := gcc
 endif
 
-build: writer.c
+all: writer.c
 	$(CPL) -o writer writer.c
 clean:
 	rm -rf writer *.o
