@@ -55,6 +55,8 @@ int main(int argc, char *argv[]) {
 	openlog("aesdsocket", LOG_PID | LOG_CONS, LOG_DAEMON);
 	if((status = getaddrinfo(NULL, "9000", &hints, &res)) != 0) {
 		syslog(LOG_ERR, "getaddrinfo error: %s", gai_strerror(status));
+		freeaddrinfo(res);
+		closelog();
 		exit(1);
 	}
 	
@@ -62,8 +64,17 @@ int main(int argc, char *argv[]) {
 	if(sockfd == -1) {
 		syslog(LOG_ERR, "socket error: %s", strerror(errno));
 		freeaddrinfo(res);
+		closelog();
 		exit(1);
 	}
+	int optval = 1;
+	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1) {
+    	syslog(LOG_ERR, "setsockopt SO_REUSEADDR error: %s", strerror(errno));
+   	    close(sockfd);
+    	freeaddrinfo(res);
+    	exit(1);
+	}
+
 	// signal handling
     struct sigaction sa;
     sa.sa_flags = SA_SIGINFO;
@@ -79,17 +90,34 @@ int main(int argc, char *argv[]) {
 		syslog(LOG_ERR, "bind error: %s", strerror(errno));
 		close(sockfd);
 		freeaddrinfo(res);
+		closelog();
 		exit(1);
 	}
 	//after binding, fork
 	if(is_daemon) {
 		pid_t pid, sid;
 		pid = fork();
-		if(pid < 0) exit(1);
-		if(pid > 0) exit(0);
+		if(pid < 0) {
+			close(sockfd);
+			freeaddrinfo(res);
+			exit(1);
+		}
+		if(pid > 0) {
+			close(sockfd);
+			freeaddrinfo(res);
+			exit(0);
+		}
 		sid = setsid();
-		if(sid < 0) exit(1);
-		if(chdir("/") < 0) exit(1);
+		if(sid < 0) {
+			close(sockfd);
+			freeaddrinfo(res);
+			exit(1);
+		}
+		if(chdir("/") < 0) {
+			close(sockfd);
+			freeaddrinfo(res);				
+			exit(1);
+		}
 		close(STDIN_FILENO);
 		close(STDOUT_FILENO);
 		close(STDERR_FILENO);
@@ -99,6 +127,7 @@ int main(int argc, char *argv[]) {
 		syslog(LOG_ERR, "listen error: %s", strerror(errno));
 		close(sockfd);
 		freeaddrinfo(res);
+		closelog();
 		exit(1);
 	}
 	
@@ -110,12 +139,13 @@ int main(int argc, char *argv[]) {
 		FILE * fp = fopen("/var/tmp/aesdsocketdata", "a+");
 		if(fp == NULL) {
 			perror("Unable to open");
-			close(client_fd);
+			fclose(fp);
 			continue;
 		}
 		client_fd = accept(sockfd, (struct sockaddr *)&client_addr, &addr_size);
 		if(client_fd == -1){
 			syslog(LOG_ERR, "accept error: %s", strerror(errno));
+			fclose(fp);
 			continue;
 		}
 		
@@ -134,19 +164,19 @@ int main(int argc, char *argv[]) {
 			newline = check_newline(inbuf, nbytes);
 			fwrite(inbuf, sizeof(char), nbytes, fp);
 		}
-		fclose(fp);
-		// send back to the client
-		FILE *rfp = fopen("/var/tmp/aesdsocketdata", "r");
+		fseek(fp, 0, SEEK_SET);  
 		char fbuf[MAX_LEN];
-		size_t bytes_read;
-		while((bytes_read = fread(fbuf, 1, sizeof(fbuf), rfp)) > 0) {
-			ssize_t bytes_sent = send(client_fd, fbuf, bytes_read, 0);
-			if(bytes_sent == -1){
-				break;
-			}
-		}
+    	size_t bytes_read;
+    	while ((bytes_read = fread(fbuf, 1, sizeof(fbuf), fp)) > 0) {
+        	ssize_t bytes_sent = send(client_fd, fbuf, bytes_read, 0);
+        	if (bytes_sent == -1) {
+            	syslog(LOG_ERR, "Send error: %s", strerror(errno));
+            	break;
+        	}
+    	}
+		// send back to the client
+		fclose(fp);
 		syslog(LOG_INFO, "Closed connection from %s", client_ip);
-		fclose(rfp);
 		close(client_fd);
 	}
 	close(sockfd);
