@@ -1,4 +1,4 @@
-CC := $(CC)
+CC ?= "arrch64-none-linux-gnu-gcc"
 CXX := $(CXX)
 AR := $(AR)
 LD := $(LD)
