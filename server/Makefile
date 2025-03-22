@@ -1,4 +1,4 @@
-CC := gcc
+CC := $(CC)
 CXX := $(CXX)
 AR := $(AR)
 LD := $(LD)
